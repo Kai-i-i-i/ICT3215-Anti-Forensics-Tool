@@ -1,12 +1,13 @@
 import os
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 from tkinter import ttk
 import subprocess
 import platform
 import random
+from shutil import copyfile
 
-# Default directory path for operations, change accordingly. 
+# Default directory path for operations
 default_directory = "C:\\HIDEFILE"
 
 # Ensure the default directory exists
@@ -134,28 +135,25 @@ def create_corrupt_file():
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
 
-
 # Function to lock a file by holding an exclusive open handle
 def lock_file():
-    global locked_file_handle  # Ensure global declaration is at the start of the function
+    global locked_file_handle
 
-    file_path = filedialog.askopenfilename(initialdir="C:\\HIDEFILE", title="Select File to Lock")
+    file_path = filedialog.askopenfilename(initialdir=default_directory, title="Select File to Lock")
     if file_path:
         try:
             if platform.system() == "Windows":
                 import win32file, win32con
-                # Open the file with CreateFile, specifying read-write access and no sharing
                 handle = win32file.CreateFile(
                     file_path,
                     win32con.GENERIC_READ | win32con.GENERIC_WRITE,
-                    0,  # No sharing
+                    0,
                     None,
                     win32con.OPEN_EXISTING,
                     0,
                     None
                 )
                 
-                # Apply an exclusive lock on the file
                 win32file.LockFileEx(
                     handle,
                     win32con.LOCKFILE_EXCLUSIVE_LOCK,
@@ -165,17 +163,15 @@ def lock_file():
                 )
                 messagebox.showinfo("Success", f"The file is now locked: {file_path}\nClose the application to release the lock.")
                 
-                # Store the handle globally to keep the lock active
                 locked_file_handle = handle
                 
             else:
-                # Unix-like systems: Use open + fcntl for locking
                 import fcntl
                 locked_file = open(file_path, "r+")
                 fcntl.flock(locked_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 messagebox.showinfo("Success", f"The file is now locked: {file_path}\nClose the application to release the lock.")
                 
-                locked_file_handle = locked_file  # Assign to the global variable
+                locked_file_handle = locked_file
                 
         except BlockingIOError:
             messagebox.showerror("File Locked", "The file is already locked by another process.")
@@ -184,11 +180,33 @@ def lock_file():
     else:
         messagebox.showwarning("No file selected", "Please select a file to lock.")
 
+# Function to create a copy of the file with a fake extension
+def create_fake_extension_file():
+    file_path = filedialog.askopenfilename(initialdir=default_directory, title="Select File to Copy with Fake Extension")
+    if file_path:
+        try:
+            fake_extension = simpledialog.askstring("Fake Extension", "Enter the fake extension (e.g., .txt, .pdf, .jpg):")
+            if fake_extension:
+                if not fake_extension.startswith('.'):
+                    fake_extension = f".{fake_extension}"
+                
+                base_name = os.path.splitext(file_path)[0]
+                new_file_path = f"{base_name}{fake_extension}"
+                
+                copyfile(file_path, new_file_path)
+                
+                messagebox.showinfo("Success", f"A copy with the fake extension has been created: {new_file_path}")
+            else:
+                messagebox.showwarning("No Extension Entered", "Please enter a valid extension.")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+    else:
+        messagebox.showwarning("No File Selected", "Please select a file to create with a fake extension.")
 
 # Set up the Tkinter GUI
 root = tk.Tk()
 root.title("File Hider with Corrupt and Locked File Options")
-root.geometry("500x500")
+root.geometry("500x600")
 root.configure(bg="#2e3b4e")
 
 title_label = ttk.Label(root, text="File Hider with Corrupt and Locked File Options", font=("Helvetica", 16, "bold"))
@@ -211,6 +229,9 @@ corrupt_button.pack(pady=10)
 
 lock_button = ttk.Button(root, text="Lock File", command=lock_file, style="TButton")
 lock_button.pack(pady=10)
+
+fake_extension_button = ttk.Button(root, text="Create File with Fake Extension", command=create_fake_extension_file, style="TButton")
+fake_extension_button.pack(pady=10)
 
 footer_label = ttk.Label(
     root,
