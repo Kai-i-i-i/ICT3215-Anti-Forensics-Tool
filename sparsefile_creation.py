@@ -101,26 +101,83 @@ def manipulate_file_metadata(file_path, new_owner="fake_user", new_group="fake_g
         print("Metadata manipulation is limited on this OS.")
 
 
+def create_sparse_file(file_path, size_in_bytes):
+    """
+    Create a sparse file of the specified size.
+    Sparse files do not physically allocate space for zero-filled blocks.
+    """
+    try:
+        with open(file_path, 'wb') as sparse_file:
+            # Seek to the desired size minus one byte
+            sparse_file.seek(size_in_bytes - 1)
+            # Write a single null byte at the end to allocate the file size
+            sparse_file.write(b'\0')
+        print(f"Sparse file created at {file_path} with size {size_in_bytes} bytes.")
+    except PermissionError:
+        print(f"Permission denied: Unable to create the sparse file at {file_path}.")
+    except Exception as e:
+        print(f"An error occurred while creating the sparse file: {e}")
+
+
 # Define the folder to apply the anti-forensics techniques
-target_folder = r"C:\Users\gohyu\Documents\GIt\ICT3215-Anti-Forensics-Tool\test_folder"
+target_folder = r"test_folder"
+
+if not os.path.exists(target_folder):
+    print(f"[ERROR] Target folder does not exist: {target_folder}")
+    exit(1)
+if not os.listdir(target_folder):
+    print(f"[INFO] No files found in the target folder: {target_folder}")
+    exit(0)
 
 # Iterate over all files in the target folder and subfolders
 for root, dirs, files in os.walk(target_folder):
+
     for filename in files:
         original_file_path = os.path.join(root, filename)
 
-        print(f"\nProcessing original file: {original_file_path}")
+        print(f"\n[INFO] Processing file: {original_file_path}")
 
-        # Step 1: Create a similar encrypted file with "_confidential" in the name, or use the original if it already ends with "_confidential"
+        # Step 1: Create a similar encrypted file
+        print("[INFO] Attempting to create an encrypted similar file.")
         confidential_file_path = create_encrypted_similar_file(original_file_path,
                                                                content="Classified details about Project X.")
+        if confidential_file_path:
+            print(f"[SUCCESS] Encrypted file created at: {confidential_file_path}")
+        else:
+            print("[ERROR] Failed to create an encrypted file.")
 
         # Step 2: Hide the original file
-        hide_file(original_file_path)
+        print("[INFO] Attempting to hide the original file.")
+        try:
+            hide_file(original_file_path)
+            print(f"[SUCCESS] File hidden: {original_file_path}")
+        except Exception as e:
+            print(f"[ERROR] Failed to hide the file: {e}")
 
-        # Step 3: Apply random timestamp modification to the new confidential file or existing one if already "_confidential"
+        # Step 3: Modify timestamp for the new file
         if confidential_file_path:
-            modify_file_timestamp(confidential_file_path)
+            print(f"[INFO] Modifying the timestamp of the file: {confidential_file_path}")
+            try:
+                modify_file_timestamp(confidential_file_path)
+                print("[SUCCESS] Timestamp modified.")
+            except Exception as e:
+                print(f"[ERROR] Failed to modify the timestamp: {e}")
 
-            # Step 4: Attempt to manipulate metadata (Linux-only)
-            manipulate_file_metadata(confidential_file_path, new_owner="nobody", new_group="nogroup")
+        # Step 4: Manipulate metadata (Linux-only)
+        if platform.system() == 'Linux' and confidential_file_path:
+            print("[INFO] Attempting to manipulate file metadata (Linux-only).")
+            try:
+                manipulate_file_metadata(confidential_file_path, new_owner="nobody", new_group="nogroup")
+                print("[SUCCESS] File metadata manipulated.")
+            except Exception as e:
+                print(f"[ERROR] Failed to manipulate file metadata: {e}")
+
+        # Step 5: Create a sparse file
+        sparse_file_path = os.path.join(root, f"{os.path.splitext(filename)[0]}_decoy_sparse.txt")
+        print(f"[INFO] Creating a sparse file as a decoy: {sparse_file_path}")
+        try:
+            create_sparse_file(sparse_file_path, size_in_bytes=500 * 1024 * 1024)  # 10 MB sparse file
+            print(f"[SUCCESS] Sparse file created at: {sparse_file_path}")
+        except Exception as e:
+            print(f"[ERROR] Failed to create sparse file: {e}")
+
