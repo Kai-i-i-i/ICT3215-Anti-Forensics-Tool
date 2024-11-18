@@ -9,8 +9,13 @@ from datetime import datetime, timedelta
 import random
 import win32evtlogutil
 import win32evtlog
+from cryptography.fernet import Fernet
 
+# Generate a key for encryption
+key = Fernet.generate_key()
+cipher = Fernet(key)
 
+# Helper Functions
 def generate_random_timestamp():
     """
     Generate a random timestamp within the last 5 years.
@@ -42,6 +47,23 @@ def create_forged_event():
     except Exception as e:
         print(f"Failed to write log: {e}")
 
+def modify_file_timestamp(file_path, new_time=None):
+    """
+    Modify the access and modification time of a file.
+    If new_time is None, generate a random timestamp.
+    """
+    if new_time is None:
+        new_time = generate_random_timestamp()
+
+    try:
+        time_struct = time.strptime(new_time, '%Y-%m-%d %H:%M:%S')
+        timestamp = time.mktime(time_struct)
+        os.utime(file_path, (timestamp, timestamp))
+        print(f"Timestamps for {file_path} modified to {new_time}.")
+    except FileNotFoundError:
+        print(f"File {file_path} not found. Cannot modify timestamp.")
+    except Exception as e:
+        print(f"An error occurred while modifying the timestamp: {e}")
 
 def execute_log_with_custom_timestamp():
     source_name = "FakeSource"
@@ -68,7 +90,7 @@ def execute_log_with_custom_timestamp():
         print(f"Failed to write log: {e}")
 
 
-from datetime import datetime, timedelta
+
 
 def generate_random_ipv4():
     # Generate public IPv4 address
@@ -159,39 +181,50 @@ class ForensicsDisruptorApp:
 
     # Log Forgery Functions
     def alter_timestamps(self):
-        """Alter the timestamps of a selected file."""
-        # Prompt user to select a file
-        file_path = filedialog.askopenfilename(initialdir=default_directory, title="Select File to Alter Timestamp")
-        if not file_path:
-            messagebox.showwarning("No File Selected", "Please select a file to alter its timestamps.")
-            return
+        source_name = "FakeSource"
+        message = simpledialog.askstring("Altered Log", "Enter the message to include in the forged log: ")
 
-        # Generate a random timestamp
-        new_time = generate_random_timestamp()
+        # Set a custom timestamp (7 days ago)
+        custom_time = datetime.now() - timedelta(days=7)
+        custom_time_str = custom_time.strftime("%Y-%m-%d %H:%M:%S")
 
         try:
-            # Convert the random timestamp to a UNIX timestamp
-            time_struct = time.strptime(new_time, '%Y-%m-%d %H:%M:%S')
-            timestamp = time.mktime(time_struct)
-
-            # Update the file's access and modification times
-            os.utime(file_path, (timestamp, timestamp))
-
-            # Notify the user of the successful operation
-            messagebox.showinfo("Success", f"Timestamps for {file_path} modified to {new_time}.")
-        except FileNotFoundError:
-            messagebox.showerror("Error", f"File {file_path} not found. Cannot modify timestamp.")
+            # Register the event source if it doesn't already exist
+            win32evtlogutil.AddSourceToRegistry(source_name, "Application")
         except Exception as e:
-            messagebox.showerror("Error", f"An error occurred while modifying the timestamp: {e}")
+            print(f"Source already exists: {e}")
+
+        try:
+            # Report the event with the custom timestamp (as part of the string)
+            # Note: Event logs do not allow direct setting of the timestamp, so it's included in the message
+            win32evtlogutil.ReportEvent(
+                source_name,
+                eventID=1003,  # New event ID for backdated log
+                eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
+                strings=[f"[Timestamp: {custom_time_str}] {message}"]
+            )
+            print(f"[+] Forged log with custom timestamp written: {custom_time_str}")
+        except Exception as e:
+            print(f"Failed to write log: {e}")
 
     def inject_fake_activity(self):
         source_name = "Application"  # Write to Application log
-        user = input("Enter the username to inject activity for: ")
-        activity = input("Enter the activity (e.g., login, logout): ")
+
+        # Prompt for user input through dialog boxes
+        user = simpledialog.askstring("Inject Fake Activity", "Enter the username to inject activity for:")
+        if not user:
+            messagebox.showwarning("Input Required", "Username is required.")
+            return
+
+        activity = simpledialog.askstring("Inject Fake Activity", "Enter the activity (e.g., login, logout):")
+        if not activity:
+            messagebox.showwarning("Input Required", "Activity is required.")
+            return
 
         # Generate a random IP address
         ip_address = generate_random_ipv4() if random.random() < 0.8 else generate_random_ipv6()
 
+        # Define the message based on activity type
         if activity.lower() == "login":
             event_id = 4624  # Event ID for successful login
             message = (
@@ -213,9 +246,10 @@ class ForensicsDisruptorApp:
                 f"\tLogon ID: 0x3E7\n"
             )
         else:
-            print("[!] Invalid activity. Please choose 'login' or 'logout'.")
+            messagebox.showerror("Invalid Input", "Activity must be 'login' or 'logout'.")
             return
 
+        # Write the event to Event Viewer
         try:
             win32evtlogutil.ReportEvent(
                 source_name,
@@ -223,13 +257,18 @@ class ForensicsDisruptorApp:
                 eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
                 strings=[message]
             )
-            print(f"[+] False user activity injected into Application log: {message}")
+            messagebox.showinfo("Success", f"Fake user activity injected for user '{user}'.")
         except Exception as e:
-            print(f"Failed to inject activity: {e}")
+            messagebox.showerror("Error", f"Failed to inject activity: {e}")
 
     def mask_unauthorized_actions(self):
         source_name = "Application"
-        user = input("Enter the username to mask: ")
+
+        # Prompt for user input through dialog boxes
+        user = simpledialog.askstring("mask unauthorized actions", "Enter the username to mask:")
+        if not user:
+            messagebox.showwarning("Input Required", "Username is required.")
+            return
 
         unauthorized_event_id = 4625  # Failed login
         authorized_event_id = 4624  # Successful login
@@ -267,10 +306,41 @@ class ForensicsDisruptorApp:
         # Let user select the folder to create the phantom file
         filepath = filedialog.askdirectory(title="Select Folder to Create Phantom File")
         if filepath:
-            # Create a phantom file (empty file for example)
-            phantom_file_path = os.path.join(filepath, "phantom_file.txt")
-            with open(phantom_file_path, 'w') as phantom_file:
-                phantom_file.write("This is a phantom file.")
+            # Prompt the user to choose a file extension
+            file_extension = simpledialog.askstring("File Extension", "Enter file extension (e.g., .txt, .log, .dat):")
+
+            if file_extension:
+                # Ensure the extension starts with a dot
+                if not file_extension.startswith('.'):
+                    file_extension = f".{file_extension}"
+
+                # Start with the base file name
+                base_filename = "phantom_file1"
+                phantom_file_path = os.path.join(filepath, f"{base_filename}{file_extension}")
+
+                # Check if the file already exists, if so, append a number to the name
+                counter = 1
+                while os.path.exists(phantom_file_path):
+                    phantom_file_path = os.path.join(filepath, f"{base_filename}_{counter}{file_extension}")
+                    counter += 1
+
+                # Create the phantom file (empty file for example)
+                with open(phantom_file_path, 'w') as phantom_file:
+                    phantom_file.write("This is a phantom file.")
+
+                # Hide the file (Windows-specific hiding via attrib, for other OS hidden by default)
+                if platform.system() == "Windows":
+                    try:
+                        # Make the file hidden in Windows
+                        subprocess.check_call(["attrib", "+H", phantom_file_path])
+                        messagebox.showinfo("Success", f"Hidden phantom file created: {phantom_file_path}")
+                    except Exception as e:
+                        messagebox.showerror("Error", f"Failed to hide the file: {e}")
+                else:
+                    # On Linux/Mac, the file is hidden by default due to the dot prefix
+                    messagebox.showinfo("Success", f"Hidden phantom file created: {phantom_file_path}")
+            else:
+                messagebox.showwarning("No Extension", "Please enter a valid file extension.")
 
     def create_in_memory_file(self):
         # Placeholder for creating in-memory files logic (optional)
@@ -359,60 +429,63 @@ class ForensicsDisruptorApp:
             messagebox.showinfo("Success", "Fake files have been hidden in ADS of the selected file.")
 
     def create_corrupt_files(self):
+        # Ask the user whether they want to corrupt or lock the file
+        action = simpledialog.askstring("Select Action", "Choose action: 'corrupt' or 'lock'")
+
+        if action not in ["corrupt", "lock"]:
+            messagebox.showwarning("Invalid Input", "Please enter either 'corrupt' or 'lock'.")
+            return
         file_path = filedialog.askopenfilename(initialdir=default_directory, title="Select File to Corrupt")
         if file_path:
             try:
-                with open(file_path, "wb") as f:
-                    f.write(os.urandom(1024))  # Writes 1KB of random data
-                messagebox.showinfo("Success", f"The file has been corrupted: {file_path}")
-            except Exception as e:
-                messagebox.showerror("Error", f"An error occurred: {e}")
+                if action == "corrupt":
+                    # Corrupt the file by writing random data
+                    with open(file_path, "wb") as f:
+                        f.write(os.urandom(1024))  # Writes 1KB of random data
+                    messagebox.showinfo("Success", f"The file has been corrupted: {file_path}")
 
-    def lock_file(self):
-        global locked_file_handle
+                elif action == "lock":
+                    global locked_file_handle
+                    try:
+                        if platform.system() == "Windows":
+                            import win32file, win32con
+                            handle = win32file.CreateFile(
+                                file_path,
+                                win32con.GENERIC_READ | win32con.GENERIC_WRITE,
+                                0,
+                                None,
+                                win32con.OPEN_EXISTING,
+                                0,
+                                None
+                            )
 
-        file_path = filedialog.askopenfilename(initialdir=default_directory, title="Select File to Lock")
-        if file_path:
-            try:
-                if platform.system() == "Windows":
-                    import win32file, win32con
-                    handle = win32file.CreateFile(
-                        file_path,
-                        win32con.GENERIC_READ | win32con.GENERIC_WRITE,
-                        0,
-                        None,
-                        win32con.OPEN_EXISTING,
-                        0,
-                        None
-                    )
+                            win32file.LockFileEx(
+                                handle,
+                                win32con.LOCKFILE_EXCLUSIVE_LOCK,
+                                0,
+                                0xffff0000,
+                                win32file.OVERLAPPED()
+                            )
+                            messagebox.showinfo("Success",
+                                                f"The file is now locked: {file_path}\nClose the application to release the lock.")
 
-                    win32file.LockFileEx(
-                        handle,
-                        win32con.LOCKFILE_EXCLUSIVE_LOCK,
-                        0,
-                        0xffff0000,
-                        win32file.OVERLAPPED()
-                    )
-                    messagebox.showinfo("Success",
-                                        f"The file is now locked: {file_path}\nClose the application to release the lock.")
+                            locked_file_handle = handle
 
-                    locked_file_handle = handle
+                        else:
+                            import fcntl
+                            locked_file = open(file_path, "r+")
+                            fcntl.flock(locked_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                            messagebox.showinfo("Success",
+                                                f"The file is now locked: {file_path}\nClose the application to release the lock.")
 
-                else:
-                    import fcntl
-                    locked_file = open(file_path, "r+")
-                    fcntl.flock(locked_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    messagebox.showinfo("Success",
-                                        f"The file is now locked: {file_path}\nClose the application to release the lock.")
+                            locked_file_handle = locked_file
 
-                    locked_file_handle = locked_file
-
-            except BlockingIOError:
-                messagebox.showerror("File Locked", "The file is already locked by another process.")
+                    except BlockingIOError:
+                        messagebox.showerror("File Locked", "The file is already locked by another process.")
             except Exception as e:
                 messagebox.showerror("Error", f"An error occurred: {e}")
         else:
-            messagebox.showwarning("No file selected", "Please select a file to lock.")
+            messagebox.showwarning("No file selected", "Please select a file to corrupt or lock.")
 
     def create_fake_extension(self):
         file_path = filedialog.askopenfilename(initialdir=default_directory,
@@ -457,39 +530,21 @@ class ForensicsDisruptorApp:
             messagebox.showinfo(
                 "Success", f"Encrypted file created: {encrypted_filepath}"
             )
-
-        # Step 2: Modify timestamps
+        # Step 2: Hide the original file
+        self.hide_file(encrypted_filepath)
+        # Step 3: Modify timestamps
         self.modify_file_timestamp(encrypted_filepath)
         messagebox.showinfo(
             "Success", f"Timestamps updated for: {encrypted_filepath}"
         )
 
-        # Step 3: Manipulate metadata (Linux only)
+        # Step 4: Manipulate metadata (Linux only)
         self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
         messagebox.showinfo(
             "Success",
             f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
         )
 
-    def create_encrypted_similar_file(self, original_file_path, content):
-        """
-        Create a new file with "_confidential" in the name containing specified content.
-        """
-        directory, filename = os.path.split(original_file_path)
-        new_filename = (
-            filename.replace(".txt", "_confidential.txt")
-            if filename.endswith(".txt")
-            else f"{filename}_confidential"
-        )
-        new_file_path = os.path.join(directory, new_filename)
-
-        try:
-            with open(new_file_path, "w") as file:
-                file.write(content)
-            return new_file_path
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to create encrypted file: {e}")
-            return None
 
     def modify_file_timestamp(self, file_path):
         """Modify the timestamp of a file to a random time within the last 5 years."""
@@ -510,6 +565,55 @@ class ForensicsDisruptorApp:
             os.system(f"chown {new_owner}:{new_group} {file_path}")
         else:
             print("Metadata manipulation is limited on this OS.")
+
+    def create_encrypted_similar_file(self,original_file_path, content="Sensitive information."):
+        """
+        Create a similar encrypted file with '_confidential' added to the original filename.
+        Skip if the file already ends with '_confidential'.
+        """
+        dir_name, original_file_name = os.path.split(original_file_path)
+
+        # Check if the file already ends with '_confidential'
+        if original_file_name.endswith("_confidential" + os.path.splitext(original_file_name)[1]):
+            print(f"File {original_file_name} already ends with '_confidential'. Skipping creation.")
+            return original_file_path  # Return the original file path to apply anti-forensics
+
+        # Create a new file name by appending "_confidential" to the original file name
+        confidential_file_name = os.path.splitext(original_file_name)[0] + "_confidential" + \
+                                 os.path.splitext(original_file_name)[1]
+        confidential_file_path = os.path.join(dir_name, confidential_file_name)
+
+        try:
+            # Encrypt the content and write it to the new confidential file
+            encrypted_content = cipher.encrypt(content.encode())
+            with open(confidential_file_path, 'wb') as confidential_file:
+                confidential_file.write(encrypted_content)
+            print(f"Encrypted similar file created at {confidential_file_path}. Content is misleading and encrypted.")
+            return confidential_file_path
+        except PermissionError:
+            print(f"Permission denied: Unable to create or write to the file at {confidential_file_path}.")
+            return None
+        except Exception as e:
+            print(f"An error occurred while creating the file: {e}")
+            return None
+
+    def hide_file(self, file_path):
+        """
+        Hide a file by setting its 'hidden' attribute.
+        """
+        try:
+            if platform.system() == 'Windows':
+                os.system(f'attrib +h "{file_path}"')
+                print(f"{file_path} is now hidden.")
+            else:
+                dir_name, file_name = os.path.split(file_path)
+                hidden_file_path = os.path.join(dir_name, '.' + file_name)
+                os.rename(file_path, hidden_file_path)
+                print(f"{file_path} renamed to {hidden_file_path} to hide it.")
+        except FileNotFoundError:
+            print(f"File {file_path} not found. Cannot hide the file.")
+        except Exception as e:
+            print(f"An error occurred while hiding the file: {e}")
 
 # Run the application
 if __name__ == "__main__":
