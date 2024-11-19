@@ -10,35 +10,11 @@ import random
 import win32evtlogutil
 import win32evtlog
 from cryptography.fernet import Fernet
+import platform
 
 # Generate a key for encryption
 key = Fernet.generate_key()
 cipher = Fernet(key)
-
-# Helper Functions
-
-# def create_forged_event():
-#     source_name = "FakeSource"
-#     message = "This is a forged log entry to mislead investigators."
-#
-#     # Register the source (if not already registered)
-#     try:
-#         win32evtlogutil.AddSourceToRegistry(source_name, "Application")
-#     except Exception as e:
-#         print(f"Source already exists: {e}")
-#
-#     # Write the event
-#     try:
-#         win32evtlogutil.ReportEvent(
-#             source_name,
-#             eventID=1001,
-#             eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
-#             strings=[message]
-#         )
-#         print("[+] Forged log written to Event Viewer")
-#     except Exception as e:
-#         print(f"Failed to write log: {e}")
-
 
 def generate_random_ipv4():
     # Generate public IPv4 address
@@ -423,7 +399,7 @@ class ForensicsDisruptorApp:
 
     def create_fake_extension(self):
         file_path = filedialog.askopenfilename(initialdir=default_directory,
-                                               title="Select File to Copy with Fake Extension")
+                                               title="Select File to Rename with Fake Extension")
         if file_path:
             try:
                 fake_extension = simpledialog.askstring("Fake Extension",
@@ -435,15 +411,15 @@ class ForensicsDisruptorApp:
                     base_name = os.path.splitext(file_path)[0]
                     new_file_path = f"{base_name}{fake_extension}"
 
-                    copyfile(file_path, new_file_path)
+                    os.rename(file_path, new_file_path)
 
-                    messagebox.showinfo("Success", f"A copy with the fake extension has been created: {new_file_path}")
+                    messagebox.showinfo("Success", f"The file has been renamed to: {new_file_path}")
                 else:
                     messagebox.showwarning("No Extension Entered", "Please enter a valid extension.")
             except Exception as e:
                 messagebox.showerror("Error", f"An error occurred: {e}")
         else:
-            messagebox.showwarning("No File Selected", "Please select a file to create with a fake extension.")
+            messagebox.showwarning("No File Selected", "Please select a file to rename with a fake extension.")
 
     # File Metadata Manipulation Functions
     def manipulate_metadata(self):
@@ -473,13 +449,16 @@ class ForensicsDisruptorApp:
         )
 
         # Step 4: Manipulate metadata (Linux only)
-        self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
-        messagebox.showinfo(
-            "Success",
-            f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
-        )
+        if platform.system() == 'Linux' or os.name == 'posix':
+            self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
+            messagebox.showinfo(
+                "Success",
+                f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
+            )
+        else:
+            messagebox.showwarning("Notice", "Metadata manipulation is not applicable on this platform. Skipping this step...")
 
-
+    # Helper functions for manipulate_metadata() start
     def modify_file_timestamp(self, file_path):
         """Modify the timestamp of a file to a random time within the last 5 years."""
         try:
@@ -495,10 +474,10 @@ class ForensicsDisruptorApp:
         """
         Manipulate file metadata (requires root/administrator privileges on some systems).
         """
-        if platform.system() == 'Linux':
+        if platform.system() == 'Linux' or os.name == 'posix':
             os.system(f"chown {new_owner}:{new_group} {file_path}")
         else:
-            print("Metadata manipulation is limited on this OS.")
+            messagebox.showwarning("Warning", "Skipping step for metadata manipulation for Linux...")
 
     def create_encrypted_similar_file(self,original_file_path, content="Sensitive information."):
         """
@@ -548,7 +527,8 @@ class ForensicsDisruptorApp:
             print(f"File {file_path} not found. Cannot hide the file.")
         except Exception as e:
             print(f"An error occurred while hiding the file: {e}")
-
+    # Helper functions for manipulate_metadata() end
+    
 # Run the application
 if __name__ == "__main__":
     # Default directory path for operations
