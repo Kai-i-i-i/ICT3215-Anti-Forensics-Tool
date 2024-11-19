@@ -89,9 +89,6 @@ def execute_log_with_custom_timestamp():
     except Exception as e:
         print(f"Failed to write log: {e}")
 
-
-
-
 def generate_random_ipv4():
     # Generate public IPv4 address
     while True:
@@ -132,7 +129,7 @@ class ForensicsDisruptorApp:
         mask_actions_button.pack(pady=5)
 
         # Log File Poisoning (Optional)
-        log_poisoning_button = tk.Button(self.root, text="Log File Poisoning", command=self.log_file_poisoning)
+        log_poisoning_button = tk.Button(self.root, text="Log File Poisoning (WIP)", command=self.log_file_poisoning)
         log_poisoning_button.pack(pady=5)
 
         # Phantom Files Section
@@ -144,7 +141,7 @@ class ForensicsDisruptorApp:
         phantom_file_button.pack(pady=5)
 
         # In-Memory Files (Optional)
-        in_memory_button = tk.Button(self.root, text="Create In-Memory Files", command=self.create_in_memory_file)
+        in_memory_button = tk.Button(self.root, text="Create In-Memory Files (WIP)", command=self.create_in_memory_file)
         in_memory_button.pack(pady=5)
 
         # Sparse Files Button
@@ -299,7 +296,7 @@ class ForensicsDisruptorApp:
 
     def log_file_poisoning(self):
         # Placeholder for log file poisoning (optional)
-        messagebox.showinfo("Info", "Running Log File Poisoning...")
+        messagebox.showinfo("Info", "NOT CURRENTLY IMPLEMENTED")
 
     # Phantom Files Functions
     def create_phantom_file(self):
@@ -344,7 +341,7 @@ class ForensicsDisruptorApp:
 
     def create_in_memory_file(self):
         # Placeholder for creating in-memory files logic (optional)
-        messagebox.showinfo("Info", "Creating In-Memory Files...")
+        messagebox.showinfo("Info", "NOT CURRENTLY IMPLEMENTED")
 
     def create_sparse_files(self):
         # Let user choose the directory to save the sparse file
@@ -539,12 +536,17 @@ class ForensicsDisruptorApp:
         )
 
         # Step 4: Manipulate metadata (Linux only)
-        self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
-        messagebox.showinfo(
-            "Success",
-            f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
-        )
-
+        if platform.system() == 'Linux':
+            self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
+            messagebox.showinfo(
+                "Success",
+                f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
+            )
+        else:
+            messagebox.showinfo(
+                "Info",
+                "Non Linux system detected, skipping...",
+            )
 
     def modify_file_timestamp(self, file_path):
         """Modify the timestamp of a file to a random time within the last 5 years."""

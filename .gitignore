@@ -1,3 +1,11 @@
 # Ignore Python virtual environments
 venv/
 .venv/
+# Ignore PyInstaller build files
+build/
+dist/
+*.spec
+# Ignore all .pyc files
+*.pyc
+# Ignore all __pycache__ directories
+__pycache__/
