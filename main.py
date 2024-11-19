@@ -479,7 +479,7 @@ class ForensicsDisruptorApp:
         else:
             messagebox.showwarning("Warning", "Skipping step for metadata manipulation for Linux...")
 
-    def create_encrypted_similar_file(self,original_file_path, content="Sensitive information."):
+    def create_encrypted_similar_file(self, original_file_path, content="Sensitive information.", output_filepath=None):
         """
         Create a similar encrypted file with '_confidential' added to the original filename.
         Skip if the file already ends with '_confidential'.
@@ -491,17 +491,23 @@ class ForensicsDisruptorApp:
             print(f"File {original_file_name} already ends with '_confidential'. Skipping creation.")
             return original_file_path  # Return the original file path to apply anti-forensics
 
-        # Create a new file name by appending "_confidential" to the original file name
+        # Generate the _confidential filename
         confidential_file_name = os.path.splitext(original_file_name)[0] + "_confidential" + \
                                  os.path.splitext(original_file_name)[1]
         confidential_file_path = os.path.join(dir_name, confidential_file_name)
 
         try:
-            # Encrypt the content and write it to the new confidential file
+            # Check if the file exists and remove it to avoid issues
+            if os.path.exists(confidential_file_path):
+                os.remove(confidential_file_path)
+                print(f"Existing file {confidential_file_path} removed.")
+
+            # Encrypt the content and write to the file
             encrypted_content = cipher.encrypt(content.encode())
             with open(confidential_file_path, 'wb') as confidential_file:
                 confidential_file.write(encrypted_content)
-            print(f"Encrypted similar file created at {confidential_file_path}. Content is misleading and encrypted.")
+
+            print(f"Encrypted file created/overwritten at {confidential_file_path}. Content is misleading and encrypted.")
             return confidential_file_path
         except PermissionError:
             print(f"Permission denied: Unable to create or write to the file at {confidential_file_path}.")
