@@ -6,10 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="8a0838c0-2458-4226-835a-035e8d306026" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_folder/New Text Document.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_folder/sparse_file.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_folder/sparse_file_confidential.txt" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

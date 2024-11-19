@@ -306,8 +306,6 @@ class ForensicsDisruptorApp:
 
     # Conceal Files Functions
     def conceal_files(self):
-        filepath = filedialog.askdirectory()
-        messagebox.showinfo("Info", f"Concealing Files in {filepath}...")
         file_path = filedialog.askopenfilename(initialdir=default_directory, title="Select File to Hide")
         if file_path:
             try:
