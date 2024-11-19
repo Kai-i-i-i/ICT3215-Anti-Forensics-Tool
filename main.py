@@ -16,78 +16,29 @@ key = Fernet.generate_key()
 cipher = Fernet(key)
 
 # Helper Functions
-def generate_random_timestamp():
-    """
-    Generate a random timestamp within the last 5 years.
-    """
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=5*365)  # Approximately 5 years ago
-    random_date = start_date + (end_date - start_date) * random.random()
-    return random_date.strftime('%Y-%m-%d %H:%M:%S')
 
-def create_forged_event():
-    source_name = "FakeSource"
-    message = "This is a forged log entry to mislead investigators."
+# def create_forged_event():
+#     source_name = "FakeSource"
+#     message = "This is a forged log entry to mislead investigators."
+#
+#     # Register the source (if not already registered)
+#     try:
+#         win32evtlogutil.AddSourceToRegistry(source_name, "Application")
+#     except Exception as e:
+#         print(f"Source already exists: {e}")
+#
+#     # Write the event
+#     try:
+#         win32evtlogutil.ReportEvent(
+#             source_name,
+#             eventID=1001,
+#             eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
+#             strings=[message]
+#         )
+#         print("[+] Forged log written to Event Viewer")
+#     except Exception as e:
+#         print(f"Failed to write log: {e}")
 
-    # Register the source (if not already registered)
-    try:
-        win32evtlogutil.AddSourceToRegistry(source_name, "Application")
-    except Exception as e:
-        print(f"Source already exists: {e}")
-
-    # Write the event
-    try:
-        win32evtlogutil.ReportEvent(
-            source_name,
-            eventID=1001,
-            eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
-            strings=[message]
-        )
-        print("[+] Forged log written to Event Viewer")
-    except Exception as e:
-        print(f"Failed to write log: {e}")
-
-def modify_file_timestamp(file_path, new_time=None):
-    """
-    Modify the access and modification time of a file.
-    If new_time is None, generate a random timestamp.
-    """
-    if new_time is None:
-        new_time = generate_random_timestamp()
-
-    try:
-        time_struct = time.strptime(new_time, '%Y-%m-%d %H:%M:%S')
-        timestamp = time.mktime(time_struct)
-        os.utime(file_path, (timestamp, timestamp))
-        print(f"Timestamps for {file_path} modified to {new_time}.")
-    except FileNotFoundError:
-        print(f"File {file_path} not found. Cannot modify timestamp.")
-    except Exception as e:
-        print(f"An error occurred while modifying the timestamp: {e}")
-
-def execute_log_with_custom_timestamp():
-    source_name = "FakeSource"
-    message = input("Enter the message to include in the forged log: ")
-
-    # Set a custom timestamp
-    custom_time = datetime.now() - timedelta(days=7)
-    custom_time_str = custom_time.strftime("%Y-%m-%d %H:%M:%S")
-
-    try:
-        win32evtlogutil.AddSourceToRegistry(source_name, "Application")
-    except Exception as e:
-        print(f"Source already exists: {e}")
-
-    try:
-        win32evtlogutil.ReportEvent(
-            source_name,
-            eventID=1003,  # New event ID for backdated log
-            eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
-            strings=[f"[Timestamp: {custom_time_str}] {message}"]
-        )
-        print(f"[+] Forged log with custom timestamp written: {custom_time_str}")
-    except Exception as e:
-        print(f"Failed to write log: {e}")
 
 def generate_random_ipv4():
     # Generate public IPv4 address
@@ -128,10 +79,6 @@ class ForensicsDisruptorApp:
         mask_actions_button = tk.Button(self.root, text="Mask Unauthorized Actions", command=self.mask_unauthorized_actions)
         mask_actions_button.pack(pady=5)
 
-        # Log File Poisoning (Optional)
-        log_poisoning_button = tk.Button(self.root, text="Log File Poisoning (WIP)", command=self.log_file_poisoning)
-        log_poisoning_button.pack(pady=5)
-
         # Phantom Files Section
         phantom_files_label = tk.Label(self.root, text="Phantom Files", font=("Arial", 14))
         phantom_files_label.pack(pady=10)
@@ -139,10 +86,6 @@ class ForensicsDisruptorApp:
         # Create Phantom File Button
         phantom_file_button = tk.Button(self.root, text="Create Phantom File", command=self.create_phantom_file)
         phantom_file_button.pack(pady=5)
-
-        # In-Memory Files (Optional)
-        in_memory_button = tk.Button(self.root, text="Create In-Memory Files (WIP)", command=self.create_in_memory_file)
-        in_memory_button.pack(pady=5)
 
         # Sparse Files Button
         sparse_file_button = tk.Button(self.root, text="Create Sparse Files", command=self.create_sparse_files)
@@ -152,8 +95,12 @@ class ForensicsDisruptorApp:
         conceal_files_label = tk.Label(self.root, text="Conceal Files", font=("Arial", 14))
         conceal_files_label.pack(pady=10)
 
-        # Conceal Files with Symbolic Links/NTFS ADS
-        conceal_files_button = tk.Button(self.root, text="Conceal Files (Sym Links/NTFS ADS)", command=self.conceal_files)
+        # Conceal Files with Symbolic Links
+        conceal_files_button = tk.Button(self.root, text="Conceal Files (Sym Links)", command=self.conceal_files)
+        conceal_files_button.pack(pady=5)
+
+        # Conceal Files in NTFS ADS
+        conceal_files_button = tk.Button(self.root, text="Conceal Files (NTFS ADS)", command=self.conceal_files_ads)
         conceal_files_button.pack(pady=5)
 
         # Corrupt/Locked Files Button
@@ -294,10 +241,6 @@ class ForensicsDisruptorApp:
         except Exception as e:
             print(f"[!] Failed to mask unauthorized action: {e}")
 
-    def log_file_poisoning(self):
-        # Placeholder for log file poisoning (optional)
-        messagebox.showinfo("Info", "NOT CURRENTLY IMPLEMENTED")
-
     # Phantom Files Functions
     def create_phantom_file(self):
         # Let user select the folder to create the phantom file
@@ -338,10 +281,6 @@ class ForensicsDisruptorApp:
                     messagebox.showinfo("Success", f"Hidden phantom file created: {phantom_file_path}")
             else:
                 messagebox.showwarning("No Extension", "Please enter a valid file extension.")
-
-    def create_in_memory_file(self):
-        # Placeholder for creating in-memory files logic (optional)
-        messagebox.showinfo("Info", "NOT CURRENTLY IMPLEMENTED")
 
     def create_sparse_files(self):
         # Let user choose the directory to save the sparse file
@@ -386,7 +325,7 @@ class ForensicsDisruptorApp:
             messagebox.showwarning("No file selected", "Please select a file to hide.")
 
     # Function to hide fake files in ADS of a primary file
-    def hide_fake_files_in_ads(self):
+    def conceal_files_ads(self):
         primary_file_path = filedialog.askopenfilename(initialdir=default_directory,
                                                        title="Select Primary File for ADS")
         if primary_file_path:
@@ -536,17 +475,12 @@ class ForensicsDisruptorApp:
         )
 
         # Step 4: Manipulate metadata (Linux only)
-        if platform.system() == 'Linux':
-            self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
-            messagebox.showinfo(
-                "Success",
-                f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
-            )
-        else:
-            messagebox.showinfo(
-                "Info",
-                "Non Linux system detected, skipping...",
-            )
+        self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
+        messagebox.showinfo(
+            "Success",
+            f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
+        )
+
 
     def modify_file_timestamp(self, file_path):
         """Modify the timestamp of a file to a random time within the last 5 years."""
