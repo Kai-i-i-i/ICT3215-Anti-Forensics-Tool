@@ -9,3 +9,5 @@ dist/
 *.pyc
 # Ignore all __pycache__ directories
 __pycache__/
+# Ignore .idea folder
+.idea/
