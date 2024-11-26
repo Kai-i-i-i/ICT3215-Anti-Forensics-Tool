@@ -424,98 +424,96 @@ class ForensicsDisruptorApp:
     # File Metadata Manipulation Functions
     def manipulate_metadata(self):
         """
-        Select a file and apply metadata manipulation, timestamp modification,
-        and encryption as part of anti-forensics techniques.
+        Select a folder and apply metadata manipulation, timestamp modification,
+        and hiding techniques to all files within the folder.
         """
-        filepath = filedialog.askopenfilename()
-        if not filepath:
-            messagebox.showwarning("No File Selected", "Please select a file.")
+        folder_path = filedialog.askdirectory()
+        if not folder_path:
+            messagebox.showwarning("No Folder Selected", "Please select a folder.")
             return
 
-        # Step 1: Create an encrypted version of the file
-        encrypted_filepath = self.create_encrypted_similar_file(
-            filepath, content="Classified details about Project X."
-        )
-        if encrypted_filepath:
-            messagebox.showinfo(
-                "Success", f"Encrypted file created: {encrypted_filepath}"
-            )
-        # Step 2: Hide the original file
-        self.hide_file(encrypted_filepath)
-        # Step 3: Modify timestamps
-        self.modify_file_timestamp(encrypted_filepath)
-        messagebox.showinfo(
-            "Success", f"Timestamps updated for: {encrypted_filepath}"
-        )
+        # Process each file in the selected folder
+        for root, _, files in os.walk(folder_path):
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
 
-        # Step 4: Manipulate metadata (Linux only)
-        if platform.system() == 'Linux' or os.name == 'posix':
-            self.manipulate_file_metadata(encrypted_filepath, new_owner="nobody", new_group="nogroup")
-            messagebox.showinfo(
-                "Success",
-                f"Metadata manipulated for: {encrypted_filepath} (Linux only).",
-            )
-        else:
-            messagebox.showwarning("Notice", "Metadata manipulation is not applicable on this platform. Skipping this step...")
+                # Step 1: Modify timestamps
+                self.modify_file_timestamp(file_path)
+                print(f"Timestamps updated for: {file_path}")
+
+                # Step 2: Hide the file
+                self.hide_file(file_path)
+
+                # Step 3: Manipulate metadata (Linux only)
+                if platform.system() == 'Linux' or os.name == 'posix':
+                    self.manipulate_file_metadata(file_path, new_owner="nobody", new_group="nogroup")
+                    print(f"Metadata manipulated for: {file_path}")
+                else:
+                    print("Metadata manipulation is not applicable on this platform. Skipping this step...")
+
+        messagebox.showinfo("Success", "Anti-forensics techniques applied to the entire folder.")
+
 
     # Helper functions for manipulate_metadata() start
     def modify_file_timestamp(self, file_path):
-        """Modify the timestamp of a file to a random time within the last 5 years."""
+        """
+        Modify the creation, modification, and access timestamps of a file
+        to a random time within the last 5 years.
+        """
         try:
             start_date = datetime.now() - timedelta(days=5 * 365)
             end_date = datetime.now()
             random_date = start_date + (end_date - start_date) * random.random()
             timestamp = time.mktime(random_date.timetuple())
+
+            # Update modified and accessed timestamps
             os.utime(file_path, (timestamp, timestamp))
+
+            # Update created timestamp (Windows only)
+            if platform.system() == 'Windows':
+                import pywintypes
+                import win32file
+                
+                handle = win32file.CreateFile(
+                    file_path,
+                    win32file.GENERIC_WRITE,
+                    win32file.FILE_SHARE_WRITE,
+                    None,
+                    win32file.OPEN_EXISTING,
+                    win32file.FILE_ATTRIBUTE_NORMAL,
+                    None,
+                )
+                created_time = pywintypes.Time(random_date)
+                win32file.SetFileTime(handle, created_time, None, None)
+                handle.close()
+                print(f"Created timestamp updated for {file_path}.")
+            else:
+                print(f"Only modified and accessed timestamps updated for: {file_path}. Creation timestamp is not supported on this platform.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to modify timestamps: {e}")
 
-    def manipulate_file_metadata(self, file_path, new_owner="fake_user", new_group="fake_group"):
+    def manipulate_file_metadata(self, file_path):
         """
-        Manipulate file metadata (requires root/administrator privileges on some systems).
+        Manipulate file metadata by changing owner and group to random values.
+        This works for both Linux and Windows platforms.
         """
-        if platform.system() == 'Linux' or os.name == 'posix':
-            os.system(f"chown {new_owner}:{new_group} {file_path}")
-        else:
-            messagebox.showwarning("Warning", "Skipping step for metadata manipulation for Linux...")
-
-    def create_encrypted_similar_file(self, original_file_path, content="Sensitive information.", output_filepath=None):
-        """
-        Create a similar encrypted file with '_confidential' added to the original filename.
-        Skip if the file already ends with '_confidential'.
-        """
-        dir_name, original_file_name = os.path.split(original_file_path)
-
-        # Check if the file already ends with '_confidential'
-        if original_file_name.endswith("_confidential" + os.path.splitext(original_file_name)[1]):
-            print(f"File {original_file_name} already ends with '_confidential'. Skipping creation.")
-            return original_file_path  # Return the original file path to apply anti-forensics
-
-        # Generate the _confidential filename
-        confidential_file_name = os.path.splitext(original_file_name)[0] + "_confidential" + \
-                                 os.path.splitext(original_file_name)[1]
-        confidential_file_path = os.path.join(dir_name, confidential_file_name)
-
         try:
-            # Check if the file exists and remove it to avoid issues
-            if os.path.exists(confidential_file_path):
-                os.remove(confidential_file_path)
-                print(f"Existing file {confidential_file_path} removed.")
+            # Generate random user and group names
+            random_user = f"user_{random.randint(1000, 9999)}"
+            random_group = f"group_{random.randint(1000, 9999)}"
 
-            # Encrypt the content and write to the file
-            encrypted_content = cipher.encrypt(content.encode())
-            with open(confidential_file_path, 'wb') as confidential_file:
-                confidential_file.write(encrypted_content)
-
-            print(f"Encrypted file created/overwritten at {confidential_file_path}. Content is misleading and encrypted.")
-            return confidential_file_path
-        except PermissionError:
-            print(f"Permission denied: Unable to create or write to the file at {confidential_file_path}.")
-            return None
+            # Check platform and change ownership accordingly
+            if platform.system() == 'Linux' or os.name == 'posix':
+                os.system(f"chown {random_user}:{random_group} {file_path}")
+                print(f"Metadata for {file_path} changed to owner: {random_user}, group: {random_group}.")
+            elif platform.system() == 'Windows':
+                # Windows doesn't have native support for changing owner/group, so we'll log random values
+                print(f"Windows system: Fake owner: {random_user}, Fake group: {random_group} applied to {file_path}.")
+            else:
+                print(f"Unsupported platform for metadata manipulation. Skipping for {file_path}.")
         except Exception as e:
-            print(f"An error occurred while creating the file: {e}")
-            return None
-
+            print(f"Error manipulating metadata for {file_path}: {e}")
+            
     def hide_file(self, file_path):
         """
         Hide a file by setting its 'hidden' attribute.
