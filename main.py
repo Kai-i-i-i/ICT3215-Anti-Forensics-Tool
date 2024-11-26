@@ -437,14 +437,17 @@ class ForensicsDisruptorApp:
             for file_name in files:
                 file_path = os.path.join(root, file_name)
 
-                # Step 1: Modify timestamps
+                # Step 1: Get and print file information
+                self.print_file_info(file_path)
+
+                # Step 2: Modify timestamps
                 self.modify_file_timestamp(file_path)
                 print(f"Timestamps updated for: {file_path}")
 
-                # Step 2: Hide the file
+                # Step 3: Hide the file
                 self.hide_file(file_path)
 
-                # Step 3: Manipulate metadata (Linux only)
+                # Step 4: Manipulate metadata (Linux only)
                 if platform.system() == 'Linux' or os.name == 'posix':
                     self.manipulate_file_metadata(file_path, new_owner="nobody", new_group="nogroup")
                     print(f"Metadata manipulated for: {file_path}")
@@ -453,8 +456,104 @@ class ForensicsDisruptorApp:
 
         messagebox.showinfo("Success", "Anti-forensics techniques applied to the entire folder.")
 
+    def print_file_info(self, file_path):
+        """
+        Print the file name, type, location, size, and attributes before manipulating the metadata.
+        """
+        try:
+            # File name and location
+            file_name = os.path.basename(file_path)
+            file_location = os.path.dirname(file_path)
 
-    # Helper functions for manipulate_metadata() start
+            # File size
+            file_size = os.path.getsize(file_path)
+
+            # File attributes
+            if platform.system() == 'Windows':
+                # Windows specific attribute check
+                file_attributes = self.get_windows_attributes(file_path)
+            else:
+                # Linux specific attribute check
+                file_attributes = self.get_linux_attributes(file_path)
+
+            # File type (mime type)
+            file_type = self.get_file_type(file_path)
+
+            # Print file details
+            print(f"File Information for {file_path}:")
+            print(f"  Name: {file_name}")
+            print(f"  Type: {file_type}")
+            print(f"  Location: {file_location}")
+            print(f"  Size: {file_size} bytes")
+            print(f"  Attributes: {file_attributes}")
+        except Exception as e:
+            print(f"Error retrieving file info for {file_path}: {e}")
+
+    def get_file_type(self, file_path):
+        """
+        Get the file type based on its extension.
+        """
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(file_path)
+        return mime_type or 'Unknown'
+
+    def get_windows_attributes(self, file_path):
+        """
+        Get file attributes for Windows (Hidden, Read-Only, System, etc.)
+        """
+        import ctypes
+        from ctypes import wintypes
+
+        # File attribute flags
+        FILE_ATTRIBUTE_NORMAL = 0x80
+        FILE_ATTRIBUTE_HIDDEN = 0x2
+        FILE_ATTRIBUTE_SYSTEM = 0x4
+        FILE_ATTRIBUTE_READONLY = 0x1
+
+        # Fetch file attributes
+        try:
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+            get_file_attributes = kernel32.GetFileAttributesW
+            get_file_attributes.argtypes = [wintypes.LPCWSTR]
+            get_file_attributes.restype = wintypes.DWORD
+
+            attrs = get_file_attributes(file_path)
+            if attrs == -1:
+                raise Exception(f"Failed to get attributes for {file_path}")
+
+            # Extract attributes
+            attributes = []
+            if attrs & FILE_ATTRIBUTE_HIDDEN:
+                attributes.append('Hidden')
+            if attrs & FILE_ATTRIBUTE_SYSTEM:
+                attributes.append('System')
+            if attrs & FILE_ATTRIBUTE_READONLY:
+                attributes.append('Read-Only')
+            if attrs == FILE_ATTRIBUTE_NORMAL:
+                attributes.append('Normal')
+
+            return ', '.join(attributes) if attributes else 'None'
+        except Exception as e:
+            print(f"Error fetching Windows file attributes: {e}")
+            return 'Unknown'
+
+    def get_linux_attributes(self, file_path):
+        """
+        Get file attributes for Linux (Hidden, Read-Only, etc.)
+        """
+        try:
+            # Check for hidden attribute (files starting with '.')
+            hidden = 'Hidden' if file_path.split(os.sep)[-1].startswith('.') else 'Not Hidden'
+            
+            # Get file permissions (Read-Only check)
+            permissions = oct(os.stat(file_path).st_mode)[-3:]
+            read_only = 'Read-Only' if permissions[0] == '4' else 'Writable'
+
+            return f"{hidden}, {read_only}"
+        except Exception as e:
+            print(f"Error fetching Linux file attributes: {e}")
+            return 'Unknown'
+
     def modify_file_timestamp(self, file_path):
         """
         Modify the creation, modification, and access timestamps of a file
@@ -513,7 +612,7 @@ class ForensicsDisruptorApp:
                 print(f"Unsupported platform for metadata manipulation. Skipping for {file_path}.")
         except Exception as e:
             print(f"Error manipulating metadata for {file_path}: {e}")
-            
+
     def hide_file(self, file_path):
         """
         Hide a file by setting its 'hidden' attribute.
@@ -531,7 +630,7 @@ class ForensicsDisruptorApp:
             print(f"File {file_path} not found. Cannot hide the file.")
         except Exception as e:
             print(f"An error occurred while hiding the file: {e}")
-    # Helper functions for manipulate_metadata() end
+
     
 # Run the application
 if __name__ == "__main__":
