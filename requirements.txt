@@ -1,0 +1,10 @@
+altgraph==0.17.4
+cffi==1.17.1
+cryptography==43.0.3
+packaging==24.2
+pefile==2023.2.7
+pycparser==2.22
+pyinstaller==6.11.1
+pyinstaller-hooks-contrib==2024.10
+pywin32==308
+pywin32-ctypes==0.2.3
