@@ -14,7 +14,7 @@ This README will guide you through setting up and using *Forensics Disruptor* ef
    - Automates masking of unauthorized actions with legitimate-looking entries.
 
 2. **Phantom Files**:
-   - Create hidden files in a folder of choice making it seem like somoene is trying to hide something there.
+   - Create hidden files in a folder of choice making it appear like somoene is trying to hide something there, wasting investigators' time.
    - Create empty, large fake files (sparse files).
    - Hides a file within another file using NTFS Alternate Data Streams (ADS).
    - Corrupts or lock a file via encryption.
@@ -128,5 +128,6 @@ The resulting executable will be located in the `dist/` directory.
 
 # Future Enhancements
 - Improved Linux support.
+- In memory files.
 - Additional GUI customization options.
 - Expanded testing and evaluation features.
