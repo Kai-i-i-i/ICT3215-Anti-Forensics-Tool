@@ -11,3 +11,5 @@ dist/
 __pycache__/
 # Ignore .idea folder
 .idea/
+#Ignore test_folder
+/test_folder/
