@@ -1,95 +1,133 @@
-# ICT3215-Anti-Forensics-Tool
-
-# Forensics Disruptor
+# ICT3215-Anti-Forensics-Tool (Forensics Disruptor)
 
 ## Introduction
-*Forensics Disruptor* is an advanced anti-forensics tool designed to actively disrupt digital forensic investigations. Unlike traditional anti-forensic tools that focus on hiding or deleting evidence, *Forensics Disruptor* injects false evidence, manipulates logs, and creates misleading data to confuse and mislead investigators. This tool is primarily developed for educational purposes, helping cybersecurity professionals test and hone their forensic analysis skills in real-world scenarios.
+*Forensics Disruptor* is an anti-forensics tool designed to disrupt digital forensic investigations by injecting false evidence, modifying logs, creating phantom files, and manipulating file metadata. This project provides a comprehensive set of features aimed at simulating real-world anti-forensics techniques for educational purposes.
+
+This README will guide you through setting up and using *Forensics Disruptor* effectively.
+
+---
 
 ## Features
-*Forensics Disruptor* automates several advanced anti-forensics techniques to disrupt forensic investigations:
+1. **Log Forgery**:
+   - Alters timestamps in logs using unique sources and events.
+   - Injects fake user activities such as login, logout, file access, and system shutdown.
+   - Automates masking of unauthorized actions with legitimate-looking entries.
 
-1. **Log Forgery**: Modifies system and application logs to alter timestamps, inject false user activity, and mask unauthorized actions. This feature also includes log file poisoning to further mislead investigators.
-2. **Phantom Files**: Generates fake files that appear legitimate but contain misleading or encrypted data, wasting investigators' time.
-   - Includes features such as sparse files, in-memory files, hidden files, symbolic links, and NTFS Alternate Data Streams (ADS).
-3. **File Metadata Manipulation**: Alters file attributes, visibility, and metadata to make files difficult to trace or verify.
-4. **Cross-Platform Support**: The tool is primarily developed for Windows, but may include support for other operating systems.
-5. **User Interface**: The tool provides a user-friendly graphical user interface (GUI) with both automatic and manual features.
+2. **Phantom Files**:
+   - Create hidden files in a folder of choice making it appear like somoene is trying to hide something there, wasting investigators' time.
+   - Create empty, large fake files (sparse files).
+   - Hides a file within another file using NTFS Alternate Data Streams (ADS).
+   - Corrupts or lock a file via encryption.
+   - Randomly assign fake extentions to a files in a folder.
 
-## Requirements
-- **Operating System**: Windows 10 or higher
-- **Programming Language**: Python 3.8+
-- **Dependencies**:
-  - Refer to `requirements.txt`
+3. **File Metadata Manipulation**:
+   - Modify file attributes and timestamps.
+   - Hide files in plain sight by altering their metadata.
 
-## Usage
+4. **Cross-Platform Compatibility**:
+   - Primarily supports Windows but includes some Linux-specific functionality.
+
+## Prerequisites
+
+### Supported Operating Systems
+- **Windows 10 or higher** (Primary target).
+- Limited functionality for **Linux-based systems**.
+
+### Required Software
+- **Python 3.8+** installed on your system. [Download Python](https://www.python.org/downloads/)
+- Recommended: Git for cloning the repository. [Download Git](https://git-scm.com/downloads)
+
+---
+
+## Installation Guide
 
 ### Step 1: Clone the Repository
+To begin, clone the repository to your local machine:
 ```bash
-git clone https://github.com/Kai-i-i-i/ICT3215-Anti-Forensics-Tool.git
-cd ICT3215-Anti-Forensics-Tool
+git clone https://github.com/yourusername/Forensics-Disruptor.git
+cd Forensics-Disruptor
 ```
+### Step 2: Create a Virtual Environment
+Create and activate a virtual environment to manage dependencies:
+```bash
+# Create virtual environment
+python -m venv venv
 
-### Step 2: Install Dependencies
-Ensure you have Python 3.8+ installed on your system. Then, install the necessary Python packages:
+# Activate the virtual environment
+# For Windows:
+venv\Scripts\activate
+
+# For Linux/Mac:
+source venv/bin/activate
+```
+### Step 3: Install Dependencies
+Install the required Python packages from `requirements.txt`:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 3: Run the Program
-You can run the program by executing the main Python script:
+## Usage
+
+### Running the Application
+
+The main GUI application can be started using:
 ```bash
 python main.py
 ```
 
-### GUI Overview
-- **Log Forgery**: Automatically modifies system logs (e.g., altering timestamps, injecting fake user activity). Some functions are auto-executed upon startup, while others can be manually triggered via the GUI.
-- **Phantom File Creation**: Creates fake files in critical system locations. These files may appear important but contain minimal data, be encrypted, or have altered metadata.
-- **File Metadata Manipulation**: Allows you to manipulate file timestamps and attributes. This function lets you hide files in plain sight or make them harder to track.
+Once started, the GUI will provide buttons and options for all the features. For instance:
 
-### Example Commands (if running manually)
-To create a phantom file:
+- Select folders/files for log forgery, phantom files, or metadata manipulation.
+- Generate reports or evaluate the effectiveness of anti-forensics features.
+
+## Compiling into an Executable
+
+You can compile the application into a standalone executable using `build.py`:
+
 ```bash
-python phantom_file.py --path "C:/Users/target_folder" --size 1024
+python build.py
 ```
+The resulting executable will be located in the `dist/` directory.
 
-To alter file metadata:
-```bash
-python metadata_manipulation.py --file "C:/Users/file.txt" --timestamp "2022-10-01 12:00:00"
-```
+---
 
-## Features Breakdown
+## File Descriptions
 
-1. **Log Forgery**:
-   - Alters log entries to inject false activities and replace unauthorized actions.
-   - Uses log poisoning techniques to execute malicious code through HTTP GET requests.
-   - Example: Using `Timestomp`-like functionality to modify log timestamps.
+- `main.py`: The primary script that launches the GUI for the application. It integrates all features such as log forgery, phantom files, and metadata manipulation.
+- `build.py`: Automates the process of creating a standalone executable using PyInstaller.
+- `requirements.txt`: Lists all the dependencies required to run the project.
 
-2. **Phantom Files**:
-   - Creates fake files with realistic names and locations.
-   - Includes features such as sparse files, in-memory files, and symbolic links.
-   - Adds corrupted or locked files that cannot be opened, and files with fake extensions.
+## Example Usage
 
-3. **File Metadata Manipulation**:
-   - Changes the file creation, modification, and access times.
-   - Hides files in obscure directories or modifies their metadata to mislead investigators.
+**1. Log Forgery**
 
-## Testing
+- Open the application.
+- Select "Alter Timestamps" or "Inject Fake User Activity".
+- Follow the prompts to specify the log details to modify.
 
-1. **Functional Testing**: Test the features in simulated forensic environments.
-   - Run the tool, and then attempt to analyze the logs and files using common forensic tools such as [Autopsy](https://www.sleuthkit.org/autopsy/).
-   - Ensure the tool misleads the investigator by altering logs, creating phantom files, and manipulating file metadata.
+**2. Phantom Files**
+- Use options like "Create Phantom File" or "Create Sparse Files".
+- Choose a target directory where the files will be created.
 
-2. **Performance Testing**: Verify that the tool does not significantly degrade system performance.
-   - Monitor CPU and memory usage while running intensive tasks such as file creation and log forgery.
+**3. File Metadata Manipulation**
+- Select "Manipulate File Metadata" from the GUI.
+- Provide the folder or file to alter, and the tool will apply changes.
 
-## Known Issues
-- The in-memory file feature is still under development and may not function optimally on all systems.
-- Cross-platform support for Linux and macOS is currently limited; the tool is primarily tested on Windows.
+# Screenshots
+## Main Interface
 
-## Future Development
-- Improve cross-platform support, focusing on Linux-based forensic tools.
-- Add more advanced file manipulation features, such as encrypting files with fake extensions.
-- Expand the GUI to offer more customization options for users.
+![gui](img/gui.png)
 
-## Credits
-- Resources: Timestomp (Metasploit), Autopsy, StegHide, OpenPuff
+## Log Forgery
+
+![log_forgery example](img/log_forgery.png)
+
+---
+
+![log_forgery example2](img/log_forgery2.png)
+
+# Future Enhancements
+- Improved Linux support.
+- In memory files.
+- Additional GUI customization options.
+- Expanded testing and evaluation features.
