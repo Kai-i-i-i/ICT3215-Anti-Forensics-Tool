@@ -2,9 +2,10 @@ import os
 import platform
 import subprocess
 import time
+import string
 import tkinter as tk
 from shutil import copyfile
-from tkinter import filedialog, messagebox, ttk, simpledialog
+from tkinter import filedialog, messagebox, simpledialog
 from datetime import datetime, timedelta
 import random
 import win32evtlogutil
@@ -16,6 +17,7 @@ import platform
 key = Fernet.generate_key()
 cipher = Fernet(key)
 
+# Helper functions
 def generate_random_ipv4():
     # Generate public IPv4 address
     while True:
@@ -26,6 +28,10 @@ def generate_random_ipv4():
 def generate_random_ipv6():
     # Generate random IPv6 address
     return ":".join(f"{random.randint(0, 65535):x}" for _ in range(8))
+
+def create_random_extension(length=3):
+    """Generate a random extension of specified length."""
+    return ''.join(random.choices(string.ascii_lowercase, k=length))
 
 class ForensicsDisruptorApp:
     def __init__(self, root):
@@ -47,13 +53,21 @@ class ForensicsDisruptorApp:
         timestamp_button = tk.Button(self.root, text="Alter Timestamps", command=self.alter_timestamps)
         timestamp_button.pack(pady=5)
 
-        # Inject Fake User Activity Button
-        fake_activity_button = tk.Button(self.root, text="Inject Fake User Activity", command=self.inject_fake_activity)
-        fake_activity_button.pack(pady=5)
+        # Inject Fake User Activity Section
+        activity_label = tk.Label(self.root, text="Select User Activity to Inject:", font=("Arial", 12))
+        activity_label.pack(pady=5)  # Add a label for clarity
 
-        # Mask Unauthorized Actions Button
-        mask_actions_button = tk.Button(self.root, text="Mask Unauthorized Actions", command=self.mask_unauthorized_actions)
-        mask_actions_button.pack(pady=5)
+        # Inject Fake User Activity Dropdown
+        global activity_var
+        activity_var = tk.StringVar(self.root)  # Create a StringVar for the dropdown
+        activity_var.set(activities[0])  # Set the default value
+
+        activity_menu = tk.OptionMenu(self.root, activity_var, *activities)  # Create the dropdown menu
+        activity_menu.pack(pady=5)  # Pack the dropdown menu into the window
+
+        # Inject Fake User Activity Button
+        inject_activity_button = tk.Button(self.root, text="Inject Selected Activity", command=self.inject_fake_activity)
+        inject_activity_button.pack(pady=5)
 
         # Phantom Files Section
         phantom_files_label = tk.Label(self.root, text="Phantom Files", font=("Arial", 14))
@@ -70,10 +84,6 @@ class ForensicsDisruptorApp:
         # Conceal Files Section
         conceal_files_label = tk.Label(self.root, text="Conceal Files", font=("Arial", 14))
         conceal_files_label.pack(pady=10)
-
-        # Conceal Files with Symbolic Links
-        conceal_files_button = tk.Button(self.root, text="Conceal Files (Sym Links)", command=self.conceal_files)
-        conceal_files_button.pack(pady=5)
 
         # Conceal Files in NTFS ADS
         conceal_files_button = tk.Button(self.root, text="Conceal Files (NTFS ADS)", command=self.conceal_files_ads)
@@ -101,31 +111,55 @@ class ForensicsDisruptorApp:
 
     # Log Forgery Functions
     def alter_timestamps(self):
-        source_name = "FakeSource"
-        message = simpledialog.askstring("Altered Log", "Enter the message to include in the forged log: ")
+        sources = ["Application", "Security", "System", "Setup", "Forwarded Events"]  # List of valid Windows log sources
+        event_ids = [4624, 4625, 4634, 1000, 1001, 1002]  # List of valid event IDs
+        messages = [
+            "User logged in successfully.",
+            "User failed to log in.",
+            "User logged off.",
+            "Application started.",
+            "Application stopped.",
+            "System rebooted."
+        ]
 
-        # Set a custom timestamp (7 days ago)
-        custom_time = datetime.now() - timedelta(days=7)
-        custom_time_str = custom_time.strftime("%Y-%m-%d %H:%M:%S")
+        used_sources = set()  # Track used sources
+        used_messages = set()  # Track used messages
 
-        try:
-            # Register the event source if it doesn't already exist
-            win32evtlogutil.AddSourceToRegistry(source_name, "Application")
-        except Exception as e:
-            print(f"Source already exists: {e}")
+        for _ in range(5):  # Inject and alter 5 times
+            time.sleep(1)  # Sleep for 1 second before each loop cycle
+            
+            # Select a unique source
+            source_name = random.choice([s for s in sources if s not in used_sources])
+            used_sources.add(source_name)
 
-        try:
-            # Report the event with the custom timestamp (as part of the string)
-            # Note: Event logs do not allow direct setting of the timestamp, so it's included in the message
-            win32evtlogutil.ReportEvent(
-                source_name,
-                eventID=1003,  # New event ID for backdated log
-                eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
-                strings=[f"[Timestamp: {custom_time_str}] {message}"]
-            )
-            print(f"[+] Forged log with custom timestamp written: {custom_time_str}")
-        except Exception as e:
-            print(f"Failed to write log: {e}")
+            # Select a unique event ID
+            event_id = random.choice(event_ids)  # Randomly select an event ID
+
+            # Select a unique message
+            message = random.choice([m for m in messages if m not in used_messages])
+            used_messages.add(message)
+
+            # Set a custom timestamp (7 days ago)
+            custom_time = datetime.now() - timedelta(days=7)
+            custom_time_str = custom_time.strftime("%Y-%m-%d %H:%M:%S")
+
+            try:
+                # Register the event source if it doesn't already exist
+                win32evtlogutil.AddSourceToRegistry(source_name, "Application")
+            except Exception as e:
+                messagebox.showerror("Error", f"Source already exists: {e}")
+
+            try:
+                # Report the event with the custom timestamp (as part of the string)
+                win32evtlogutil.ReportEvent(
+                    source_name,
+                    eventID=event_id,  # Use the randomly selected event ID
+                    eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
+                    strings=[f"[Timestamp: {custom_time_str}] {message}"]
+                )
+                messagebox.showinfo("Success", f"[+] Forged log with custom timestamp written: {custom_time_str} from source: {source_name} with event ID: {event_id}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to write log: {e}")
 
     def inject_fake_activity(self):
         source_name = "Application"  # Write to Application log
@@ -136,13 +170,16 @@ class ForensicsDisruptorApp:
             messagebox.showwarning("Input Required", "Username is required.")
             return
 
-        activity = simpledialog.askstring("Inject Fake Activity", "Enter the activity (e.g., login, logout):")
-        if not activity:
-            messagebox.showwarning("Input Required", "Activity is required.")
-            return
-
         # Generate a random IP address
         ip_address = generate_random_ipv4() if random.random() < 0.8 else generate_random_ipv6()
+
+        # Get the selected activity from the dropdown
+        activity = activity_var.get()  # Use the dropdown variable instead of asking for input
+
+        # Check if an activity was selected
+        if not activity:
+            messagebox.showwarning("Input Required", "Activity type is required.")
+            return
 
         # Define the message based on activity type
         if activity.lower() == "login":
@@ -165,8 +202,28 @@ class ForensicsDisruptorApp:
                 f"\tAccount Name: {user}\n"
                 f"\tLogon ID: 0x3E7\n"
             )
+        elif activity.lower() == "file_access":
+            event_id = 4663  # Event ID for file access
+            message = (
+                f"File accessed by user.\n"
+                f"Subject:\n"
+                f"\tSecurity ID: SYSTEM\n"
+                f"\tAccount Name: {user}\n"
+                f"\tLogon ID: 0x3E7\n"
+                f"Network Information:\n"
+                f"\tSource Network Address: {ip_address}\n"
+            )
+        elif activity.lower() == "system_shutdown":
+            event_id = 6006  # Event ID for system shutdown
+            message = (
+                f"System shutdown initiated by user.\n"
+                f"Subject:\n"
+                f"\tSecurity ID: SYSTEM\n"
+                f"\tAccount Name: {user}\n"
+                f"\tLogon ID: 0x3E7\n"
+            )
         else:
-            messagebox.showerror("Invalid Input", "Activity must be 'login' or 'logout'.")
+            messagebox.showwarning("Invalid Activity", "Please enter a valid activity type.")
             return
 
         # Write the event to Event Viewer
@@ -180,42 +237,6 @@ class ForensicsDisruptorApp:
             messagebox.showinfo("Success", f"Fake user activity injected for user '{user}'.")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to inject activity: {e}")
-
-    def mask_unauthorized_actions(self):
-        source_name = "Application"
-
-        # Prompt for user input through dialog boxes
-        user = simpledialog.askstring("mask unauthorized actions", "Enter the username to mask:")
-        if not user:
-            messagebox.showwarning("Input Required", "Username is required.")
-            return
-
-        unauthorized_event_id = 4625  # Failed login
-        authorized_event_id = 4624  # Successful login
-
-        ip_address = generate_random_ipv4() if random.random() < 0.8 else generate_random_ipv6()
-
-        message = (
-            f"An account was successfully logged on.\n"
-            f"Subject:\n"
-            f"\tSecurity ID: SYSTEM\n"
-            f"\tAccount Name: {user}\n"
-            f"\tLogon ID: 0x3E7\n"
-            f"Network Information:\n"
-            f"\tSource Network Address: {ip_address}\n"
-        )
-
-        try:
-            print(f"[DEBUG] Writing masked action to {source_name} log...")
-            win32evtlogutil.ReportEvent(
-                source_name,
-                eventID=authorized_event_id,
-                eventType=win32evtlog.EVENTLOG_INFORMATION_TYPE,
-                strings=[message]
-            )
-            print(f"[+] Unauthorized action masked for user '{user}' in {source_name} log.")
-        except Exception as e:
-            print(f"[!] Failed to mask unauthorized action: {e}")
 
     # Phantom Files Functions
     def create_phantom_file(self):
@@ -279,24 +300,6 @@ class ForensicsDisruptorApp:
                 messagebox.showinfo("Success", f"Sparse file created at: {sparse_file_path}")
             except Exception as e:
                 messagebox.showerror("Error", f"An error occurred: {e}")
-
-    # Conceal Files Functions
-    def conceal_files(self):
-        file_path = filedialog.askopenfilename(initialdir=default_directory, title="Select File to Hide")
-        if file_path:
-            try:
-                if platform.system() == "Windows":
-                    subprocess.check_call(["attrib", "+H", file_path])
-                    messagebox.showinfo("Success", f"The file has been hidden: {file_path}")
-                else:
-                    directory, filename = os.path.split(file_path)
-                    hidden_file_path = os.path.join(directory, f".{filename}")
-                    os.rename(file_path, hidden_file_path)
-                    messagebox.showinfo("Success", f"The file has been hidden: {hidden_file_path}")
-            except Exception as e:
-                messagebox.showerror("Error", f"An error occurred: {e}")
-        else:
-            messagebox.showwarning("No file selected", "Please select a file to hide.")
 
     # Function to hide fake files in ADS of a primary file
     def conceal_files_ads(self):
@@ -398,28 +401,27 @@ class ForensicsDisruptorApp:
             messagebox.showwarning("No file selected", "Please select a file to corrupt or lock.")
 
     def create_fake_extension(self):
-        file_path = filedialog.askopenfilename(initialdir=default_directory,
-                                               title="Select File to Rename with Fake Extension")
-        if file_path:
+        folder_path = filedialog.askdirectory(title="Select Folder to Rename Files with Fake Extensions")
+        if folder_path:
             try:
-                fake_extension = simpledialog.askstring("Fake Extension",
-                                                        "Enter the fake extension (e.g., .txt, .pdf, .jpg):")
-                if fake_extension:
-                    if not fake_extension.startswith('.'):
-                        fake_extension = f".{fake_extension}"
+                # Get all files in the selected folder
+                files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+                if not files:
+                    messagebox.showwarning("No Files Found", "The selected folder contains no files.")
+                    return
 
-                    base_name = os.path.splitext(file_path)[0]
-                    new_file_path = f"{base_name}{fake_extension}"
+                for file_name in files:
+                    base_name, _ = os.path.splitext(file_name)
+                    random_extension = create_random_extension()  # Generate a random extension
+                    new_file_path = os.path.join(folder_path, f"{base_name}.{random_extension}")
 
-                    os.rename(file_path, new_file_path)
+                    os.rename(os.path.join(folder_path, file_name), new_file_path)
 
-                    messagebox.showinfo("Success", f"The file has been renamed to: {new_file_path}")
-                else:
-                    messagebox.showwarning("No Extension Entered", "Please enter a valid extension.")
+                messagebox.showinfo("Success", f"All files in '{folder_path}' have been renamed with random extensions.")
             except Exception as e:
                 messagebox.showerror("Error", f"An error occurred: {e}")
         else:
-            messagebox.showwarning("No File Selected", "Please select a file to rename with a fake extension.")
+            messagebox.showwarning("No Folder Selected", "Please select a folder to rename files with fake extensions.")
 
     # File Metadata Manipulation Functions
     def manipulate_metadata(self):
@@ -453,7 +455,6 @@ class ForensicsDisruptorApp:
                     print("Metadata manipulation is not applicable on this platform. Skipping this step...")
 
         messagebox.showinfo("Success", "Anti-forensics techniques applied to the entire folder.")
-
 
     # Helper functions for manipulate_metadata() start
     def modify_file_timestamp(self, file_path):
@@ -548,6 +549,10 @@ class ForensicsDisruptorApp:
 if __name__ == "__main__":
     # Default directory path for operations
     default_directory = "test_folder"
+
+    # Define possible activities for fake activity injection
+    global activities
+    activities = ["login", "logout", "file_access", "system_shutdown"]
 
     # Ensure the default directory exists
     if not os.path.exists(default_directory):
