@@ -89,7 +89,8 @@ python build.py
 ```
 The resulting executable will be located in the `dist/` directory.
 
----
+**Note:** The executable must be run as an administrator for certain features to work properly.
+
 
 ## File Descriptions
 
